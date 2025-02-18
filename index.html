@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UptempoCARE Authorization Test Page</title>
+    
+    <!-- Load Auth0 SDK -->
+    <script src="https://cdn.auth0.com/js/auth0/9.19/auth0.min.js"></script>
+</head>
+<body>
+
+    <h1>UptempoCARE Authorization Test Page</h1>
+
+    <!-- Login & Logout Buttons -->
+    <button id="login-btn">Login with Auth0</button>
+    <button id="logout-btn" style="display:none;">Logout</button>
+
+    <script>
+        // Initialize Auth0
+        var auth0 = new auth0.WebAuth({
+            domain: "dev-u4h1kmdgiq4fw3ng.us.auth0.com", // Replace with your Auth0 domain
+            clientID: "FeBII8wFsQsIEFvCgYQlBiU9ubAAmph8", // Replace with your Auth0 Client ID
+            redirectUri: "http://localhost:3000/", // window.location.href Redirect to the same page after login
+            responseType: "token id_token",
+            scope: "openid profile email"
+        });
+
+        // Login function
+        document.getElementById("login-btn").addEventListener("click", function () {
+            auth0.authorize();
+        });
+
+        // Logout function
+        document.getElementById("logout-btn").addEventListener("click", function () {
+            auth0.logout({ returnTo: window.location.href });
+        });
+
+        // Handle authentication response
+        function handleAuthentication() {
+            auth0.parseHash((err, authResult) => {
+                if (authResult && authResult.accessToken && authResult.idToken) {
+                    auth0.client.userInfo(authResult.accessToken, function (err, user) {
+                        if (user) {
+                            document.getElementById("login-btn").style.display = "none";
+                            document.getElementById("logout-btn").style.display = "block";
+
+                            // Retrieve user claims from ID Token
+                            auth0.client.userInfo(authResult.accessToken, function (err, userInfo) {
+                                if (err) {
+                                    console.error("Error fetching user info:", err);
+                                    return;
+                                }
+
+                                // Extract user_hash from ID Token claims
+                                auth0.client.userInfo(authResult.accessToken, function (err, claims) {
+                                    if (claims) {
+                                        const userHash = claims["https://uptempo.io/intercom_user_hash"]; // Ensure this matches your Auth0 custom claim namespace
+
+                                        // Pass user details to Intercom
+                                        window.intercomSettings = {
+                                            app_id: "zvk01nur", // Your Intercom App ID
+                                            email: user.email,
+                                            user_hash: userHash // Secure hash for authentication
+                                        };
+
+                                        // Initialize Intercom with updated user data
+                                        window.Intercom('update', window.intercomSettings);
+                                    }
+                                });
+                            });
+                        }
+                    });
+                } else if (err) {
+                    console.error("Error during authentication:", err);
+                }
+            });
+        }
+
+        // Run authentication handling when page loads
+        window.onload = handleAuthentication;
+    </script>
+
+    <!-- Intercom Widget Script -->
+    <script>
+        (function () {
+            var w = window;
+            var ic = w.Intercom;
+            if (typeof ic === "function") {
+                ic('reattach_activator');
+                ic('update', w.intercomSettings);
+            } else {
+                var d = document;
+                var i = function () { i.c(arguments); };
+                i.q = [];
+                i.c = function (args) { i.q.push(args); };
+                w.Intercom = i;
+                var l = function () {
+                    var s = d.createElement('script');
+                    s.type = 'text/javascript';
+                    s.async = true;
+                    s.src = 'https://widget.intercom.io/widget/zvk01nur';
+                    var x = d.getElementsByTagName('script')[0];
+                    x.parentNode.insertBefore(s, x);
+                };
+                if (document.readyState === 'complete') {
+                    l();
+                } else if (w.attachEvent) {
+                    w.attachEvent('onload', l);
+                } else {
+                    w.addEventListener('load', l, false);
+                }
+            }
+        })();
+    </script>
+
+</body>
+</html>
